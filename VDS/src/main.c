@@ -1,41 +1,56 @@
 
-/* Blink Example
-
-   This example code is in the Public Domain (or CC0 licensed, at your option.)
-
-   Unless required by applicable law or agreed to in writing, this
-   software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-   CONDITIONS OF ANY KIND, either express or implied.
+/* VDS 
 */
 #include <stdio.h>
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "driver/gpio.h"
-#include "sdkconfig.h"
-
-#include <stdio.h>
 #include <string.h>
+#include <string.h>
+
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "freertos/event_groups.h"
+
+#include "driver/i2s.h"
+#include "driver/adc.h"
+#include "driver/gpio.h"
+
 #include "esp_spi_flash.h"
 #include "esp_err.h"
 #include "esp_log.h"
+#include "esp_system.h"
+#include "esp_wifi.h"
+#include "esp_event_loop.h"
 #include "esp_partition.h"
-#include "driver/i2s.h"
-#include "driver/adc.h"
+
+#include "nvs_flash.h"
+#include "sdkconfig.h"
+
 #include "esp_adc_cal.h"
-/* Can run 'make menuconfig' to choose the GPIO to blink,
-   or you can edit the following line and set a number here.
+
+#include "lwip/err.h"
+#include "lwip/sys.h"
+
+/* Definiciones ============================================================
 */
+
+
+//------WIFI------
+#define EXAMPLE_ESP_WIFI_SSID      "vdswifi"
+#define EXAMPLE_ESP_WIFI_PASS      ""
+#define EXAMPLE_MAX_STA_CONN       1
+/* FreeRTOS event group to signal when we are connected*/
+static EventGroupHandle_t s_wifi_event_group;
+
+static const char* WTAG = "wifi softAP";
+
 #define BLINK_GPIO CONFIG_BLINK_GPIO
-static const char* TAG = "adc";
+static const char* ATAG = "adc";
 #define V_REF   1100
 #define ADC1_TEST_CHANNEL (ADC1_CHANNEL_0)
 
 #define PARTITION_NAME   "storage"
 bool ledon=false;
 
-
+//------ADC------
 //i2s number
 #define EXAMPLE_I2S_NUM           (0)
 //i2s sample rate
@@ -55,8 +70,66 @@ bool ledon=false;
 //I2S built-in ADC channel
 #define I2S_ADC_CHANNEL           ADC1_CHANNEL_0
 
+int blink_time=1000;
 
-int voltage_time=1000;
+static esp_err_t event_handler(void *ctx, system_event_t *event)
+{
+    switch(event->event_id) {
+    case SYSTEM_EVENT_AP_STACONNECTED:
+        ESP_LOGI(WTAG, "station:"MACSTR" join, AID=%d",
+                 MAC2STR(event->event_info.sta_connected.mac),
+                 event->event_info.sta_connected.aid);
+        break;
+    case SYSTEM_EVENT_AP_STADISCONNECTED:
+        ESP_LOGI(WTAG, "station:"MACSTR"leave, AID=%d",
+                 MAC2STR(event->event_info.sta_disconnected.mac),
+                 event->event_info.sta_disconnected.aid);
+                 blink_time=1000;
+        break;
+    case SYSTEM_EVENT_AP_STAIPASSIGNED:
+        ESP_LOGI(WTAG, "IP ASSIGNED");
+        blink_time=500;
+        break;
+    default:
+        break;
+    }
+    return ESP_OK;
+}
+
+void wifi_init_softap()
+{
+    s_wifi_event_group = xEventGroupCreate();
+
+    tcpip_adapter_init();
+    ESP_ERROR_CHECK(esp_event_loop_init(event_handler, NULL));
+
+    wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+    ESP_ERROR_CHECK(esp_wifi_init(&cfg));
+    wifi_config_t wifi_config = {
+        .ap = {
+            .ssid = EXAMPLE_ESP_WIFI_SSID,
+            .ssid_len = strlen(EXAMPLE_ESP_WIFI_SSID),
+            .password = EXAMPLE_ESP_WIFI_PASS,
+            .max_connection = EXAMPLE_MAX_STA_CONN,
+            .authmode = WIFI_AUTH_WPA_WPA2_PSK
+        },
+    };
+    if (strlen(EXAMPLE_ESP_WIFI_PASS) == 0) {
+        wifi_config.ap.authmode = WIFI_AUTH_OPEN;
+    }
+
+    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_AP));
+    ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_AP, &wifi_config));
+    ESP_ERROR_CHECK(esp_wifi_start());
+
+    ESP_LOGI(WTAG, "wifi_init_softap finished.SSID:%s password:%s",
+             EXAMPLE_ESP_WIFI_SSID, EXAMPLE_ESP_WIFI_PASS);
+}
+
+
+
+
+
 /**
  * @brief I2S ADC/DAC mode init.
  */
@@ -90,8 +163,8 @@ void adc_read_task(void* arg)
     while(1) {
         uint32_t voltage;
         esp_adc_cal_get_voltage(ADC1_TEST_CHANNEL, &characteristics, &voltage);
-        voltage_time=voltage;
-        ESP_LOGI(TAG, "%d mV", voltage);
+        blink_time=voltage;
+        ESP_LOGI(ATAG, "%d mV", voltage);
         vTaskDelay(200 / portTICK_RATE_MS);
     }
 }
@@ -104,7 +177,7 @@ void example_disp_buf(uint8_t* buf, int length)
     for (int i = 0; i < length; i++) {
         
         adc_value = ((((uint16_t) (buf[i + 1] & 0xf) << 8) | ((buf[i + 0]))));
-        ESP_LOGI(TAG,"%d ",adc_value);
+        ESP_LOGI(ATAG,"%d ",adc_value);
         
     }
 }
@@ -140,10 +213,10 @@ void blink_task(void *pvParameter)
     while(1) {
         /* Blink off (output low) */
         gpio_set_level(BLINK_GPIO, 0);
-        vTaskDelay(voltage_time / portTICK_PERIOD_MS);
+        vTaskDelay(blink_time / portTICK_PERIOD_MS);
         /* Blink on (output high) */
         gpio_set_level(BLINK_GPIO, 1);
-        vTaskDelay(voltage_time/ portTICK_PERIOD_MS);
+        vTaskDelay(blink_time/ portTICK_PERIOD_MS);
 
         
     }
@@ -162,6 +235,21 @@ void hello_task(void *pvParameter)
 
 void app_main()
 {
+//-------------------- WIFI----------------------
+//Initialize NVS
+    esp_err_t ret = nvs_flash_init();
+    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+      ESP_ERROR_CHECK(nvs_flash_erase());
+      ret = nvs_flash_init();
+    }
+    ESP_ERROR_CHECK(ret);
+    
+    ESP_LOGI(WTAG, "ESP_WIFI_MODE_AP");
+    wifi_init_softap();
+//--------------------end WIFI-------------------
+
+
+
     i2s_init();
     esp_log_level_set("I2S", ESP_LOG_INFO);
     gpio_pad_select_gpio(BLINK_GPIO);
@@ -173,6 +261,6 @@ void app_main()
     xTaskCreate(&blink_task, "blinky", 512,NULL,5,NULL );
 
     //xTaskCreate(adc_read_task, "ADC read task", 2048, NULL, 5, NULL);
-    xTaskCreate(adc_i2s_read_task, "ADC read i2s task", 2048, NULL, 5, NULL);
+    //xTaskCreate(adc_i2s_read_task, "ADC read i2s task", 2048, NULL, 5, NULL);
     return ESP_OK;
 } 
