@@ -28,7 +28,7 @@
    or you can edit the following line and set a number here.
 */
 #define BLINK_GPIO CONFIG_BLINK_GPIO
-static const char* TAG = "ad/da";
+static const char* TAG = "adc";
 #define V_REF   1100
 #define ADC1_TEST_CHANNEL (ADC1_CHANNEL_0)
 
@@ -39,7 +39,7 @@ bool ledon=false;
 //i2s number
 #define EXAMPLE_I2S_NUM           (0)
 //i2s sample rate
-#define EXAMPLE_I2S_SAMPLE_RATE   (200000)
+#define EXAMPLE_I2S_SAMPLE_RATE   (10000)
 //i2s data bits
 #define EXAMPLE_I2S_SAMPLE_BITS   (16)
 //enable display buffer for debug
@@ -101,15 +101,12 @@ void adc_read_task(void* arg)
 void example_disp_buf(uint8_t* buf, int length)
 {
     uint32_t adc_value = 0;
-    printf("======\n");
     for (int i = 0; i < length; i++) {
         
         adc_value = ((((uint16_t) (buf[i + 1] & 0xf) << 8) | ((buf[i + 0]))));
-        printf("%d",adc_value);
-        printf("\n");
+        ESP_LOGI(TAG,"%d ",adc_value);
         
     }
-    printf("======\n"); 
 }
 
 void adc_i2s_read_task(void* arg)
