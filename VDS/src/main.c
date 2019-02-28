@@ -217,9 +217,9 @@ static void udp_server_task(void *pvParameters)
                 rx_buffer[len] = 0; // Null-terminate whatever we received and treat like a string...
                 ESP_LOGI(UTAG, "Received %d bytes from %s:", len, addr_str);
                 ESP_LOGI(UTAG, "%s", rx_buffer);
-                char code[]="code";
+                int start= strcmp("code",rx_buffer);
                 //int err = sendto(sock, rx_buffer, len, 0, (struct sockaddr *)&sourceAddr, sizeof(sourceAddr));
-                if(udp_dataready == false && rx_buffer=="start"){
+                if(udp_dataready == false && start==0){
                     udp_dataready=true;
                     udp_socket=sock;
                     udp_clientAddr= sourceAddr;
