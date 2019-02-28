@@ -2,7 +2,7 @@
 /* VDS 
 */
 #include <stdio.h>
-#include <string.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "freertos/FreeRTOS.h"
@@ -12,6 +12,9 @@
 #include "driver/i2s.h"
 #include "driver/adc.h"
 #include "driver/gpio.h"
+#include "driver/spi_master.h"
+
+#include "soc/gpio_struct.h"
 
 #include "esp_spi_flash.h"
 #include "esp_err.h"
@@ -34,7 +37,102 @@
 /* Definiciones ============================================================
 */
 
+//------ SPI-----
+#define PIN_NUM_MISO 12
+#define PIN_NUM_MOSI 13
+#define PIN_NUM_CLK  14
+#define PIN_NUM_CS   15
 
+spi_device_handle_t spi_pot;
+
+
+static const char* PTAG = "Potentiometer";
+
+void pot_set(spi_device_handle_t spi, const uint8_t data)
+{
+   /* esp_err_t ret;
+    spi_transaction_t t;
+    memset(&t, 0, sizeof(t));       //Zero out the transaction
+    t.length=16;                     //Command is 16 bits
+    t.tx_buffer=&data;               //The data is the cmd itself
+    t.user=(void*)0;         //D/C needs to be set to 0
+    ret=spi_device_transmit(spi, &t);  //Transmit!
+    assert(ret==ESP_OK);            //Should have had no issues.
+    ESP_LOGI(PTAG, "value set");*/
+
+     int8_t comand=0;
+    esp_err_t ret;
+    spi_transaction_t t;
+    memset(&t, 0, sizeof(t));       //Zero out the transaction
+    t.length=8;                    //Command is 8 bits
+    t.tx_buffer=&comand;               //The data is the cmd itself
+    t.user=(void*)0;         //D/C needs to be set to 0
+    ret=spi_device_transmit(spi, &t);  //Transmit!
+    assert(ret==ESP_OK);            //Should have had no issues.
+    comand= data;
+    memset(&t, 0, sizeof(t));       //Zero out the transaction
+    t.length=8;                    //Command is 8 bits
+    t.tx_buffer=&comand;               //The data is the cmd itself
+    t.user=(void*)0;         //D/C needs to be set to 0
+    ret=spi_device_transmit(spi, &t);  //Transmit!
+    assert(ret==ESP_OK);            //Should have had no issues.
+}
+
+void pot_up(spi_device_handle_t spi)
+{
+    int8_t comand=8;
+    esp_err_t ret;
+    spi_transaction_t t;
+    memset(&t, 0, sizeof(t));       //Zero out the transaction
+    t.length=8;                    //Command is 8 bits
+    t.tx_buffer=&comand;               //The data is the cmd itself
+    t.user=(void*)0;         //D/C needs to be set to 0
+    ret=spi_device_transmit(spi, &t);  //Transmit!
+    assert(ret==ESP_OK);            //Should have had no issues.
+    ESP_LOGI(PTAG, "pot up");
+}
+void pot_down(spi_device_handle_t spi)
+{
+    int8_t comand=4;
+    esp_err_t ret;
+    spi_transaction_t t;
+    memset(&t, 0, sizeof(t));       //Zero out the transaction
+    t.length=8;                     //Command is 8 bits
+    t.tx_buffer=&comand;               //The data is the cmd itself
+    t.user=(void*)0;         //D/C needs to be set to 0
+    ret=spi_device_transmit(spi, &t);  //Transmit!
+    assert(ret==ESP_OK);            //Should have had no issues.
+    ESP_LOGI(PTAG, "pot down");
+}
+
+void setup_spi(){
+    esp_err_t ret;
+    spi_bus_config_t buscfg={
+        .miso_io_num=PIN_NUM_MISO,
+        .mosi_io_num=PIN_NUM_MOSI,
+        .sclk_io_num=PIN_NUM_CLK,
+        .quadwp_io_num=-1,
+        .quadhd_io_num=-1,
+        .max_transfer_sz=32*8
+    };
+    spi_device_interface_config_t devcfg={
+        .clock_speed_hz=1*1000*100,//1MHz.
+        .mode=0,
+        .spics_io_num= PIN_NUM_CS,
+        .queue_size=1//how many transactions will be queued at once
+    };
+
+    //Initialize the SPI bus
+    ret=spi_bus_initialize(HSPI_HOST, &buscfg, 1);
+    ESP_ERROR_CHECK(ret);
+    //Attach the POT to the SPI bus
+    ret=spi_bus_add_device(HSPI_HOST, &devcfg, &spi_pot);
+    ESP_ERROR_CHECK(ret);
+
+    // set the pot in 0
+    pot_set(spi_pot,100);
+
+}
 //------WIFI------
 #define EXAMPLE_ESP_WIFI_SSID      "vdswifi"
 #define EXAMPLE_ESP_WIFI_PASS      ""
@@ -221,6 +319,7 @@ static void udp_server_task(void *pvParameters)
                 ESP_LOGI(UTAG, "Received %d bytes from %s:", len, addr_str);
                 ESP_LOGI(UTAG, "%s", rx_buffer);
 
+                /*++++++++++++++++++++ Comandos Udp++++++++++++++++++++++++++*/
                 strcpy(copy,rx_buffer);
 
                 code =strtok(copy," ");
@@ -237,11 +336,26 @@ static void udp_server_task(void *pvParameters)
                     // stop udp stream
                         udp_dataready = false;
                         blink_time=500;
+                }else if(strcmp("pot",code) == 0){
+                    // stop udp stream
+                    int potValue= atoi(message);
+                    ESP_LOGI(PTAG, "value: %d", potValue);
+                    pot_set(spi_pot, potValue);
+                }else if(strcmp("potup",code) == 0){
+                    // stop udp stream
+                    ESP_LOGI(PTAG, "potup comand");
+                    pot_up(spi_pot);
+                }else if(strcmp("potdown",code) == 0){
+                    // stop udp stream
+                    ESP_LOGI(PTAG, "potdown comand");
+                    pot_down(spi_pot);
                 }
+                /*++++++++++++++++++++ Comandos Udp++++++++++++++++++++++++++*/
                 if (err < 0) {
                     ESP_LOGE(UTAG, "Error occured during sending: errno %d", errno);
                     break;
                 }
+                
             }
         }
 
@@ -385,6 +499,9 @@ void hello_task(void *pvParameter)
 
 void app_main()
 {
+
+//------setup spi pot-----------
+setup_spi();
 //-------------------- WIFI----------------------
 //Initialize NVS
     esp_err_t ret = nvs_flash_init();
