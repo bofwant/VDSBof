@@ -165,6 +165,9 @@ static void wait_for_conection()
 static void udp_server_task(void *pvParameters)
 {
     char rx_buffer[128];
+    char copy[128];
+    char *message;
+    char *code;
     char addr_str[128];
     int addr_family;
     int ip_protocol;
@@ -217,13 +220,23 @@ static void udp_server_task(void *pvParameters)
                 rx_buffer[len] = 0; // Null-terminate whatever we received and treat like a string...
                 ESP_LOGI(UTAG, "Received %d bytes from %s:", len, addr_str);
                 ESP_LOGI(UTAG, "%s", rx_buffer);
-                int start= strcmp("code",rx_buffer);
-                //int err = sendto(sock, rx_buffer, len, 0, (struct sockaddr *)&sourceAddr, sizeof(sourceAddr));
-                if(udp_dataready == false && start==0){
+
+                strcpy(copy,rx_buffer);
+
+                code =strtok(copy," ");
+                ESP_LOGI(UTAG, "code: %s", code);
+                message =strtok(NULL," ");
+                ESP_LOGI(UTAG, "message: %s", message);
+                if(udp_dataready == false && strcmp("start",code) == 0){
+                    // set data for udp stream
                     udp_dataready=true;
                     udp_socket=sock;
                     udp_clientAddr= sourceAddr;
                     blink_time=250;
+                }else if(strcmp("stop",code) == 0){
+                    // stop udp stream
+                        udp_dataready = false;
+                        blink_time=500;
                 }
                 if (err < 0) {
                     ESP_LOGE(UTAG, "Error occured during sending: errno %d", errno);
