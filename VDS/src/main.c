@@ -47,39 +47,28 @@ spi_device_handle_t spi_pot;
 
 
 static const char* PTAG = "Potentiometer";
+int pot_wiper=10;
 
-void pot_set(spi_device_handle_t spi, const uint8_t data)
+//reset potenciometer to max value
+void pot_reset(spi_device_handle_t spi)
 {
-   /* esp_err_t ret;
-    spi_transaction_t t;
-    memset(&t, 0, sizeof(t));       //Zero out the transaction
-    t.length=16;                     //Command is 16 bits
-    t.tx_buffer=&data;               //The data is the cmd itself
-    t.user=(void*)0;         //D/C needs to be set to 0
-    ret=spi_device_transmit(spi, &t);  //Transmit!
-    assert(ret==ESP_OK);            //Should have had no issues.
-    ESP_LOGI(PTAG, "value set");*/
-
-     int8_t comand=0;
+    int16_t comand=0x0000;
     esp_err_t ret;
     spi_transaction_t t;
     memset(&t, 0, sizeof(t));       //Zero out the transaction
-    t.length=8;                    //Command is 8 bits
+    t.length=16;                     //Command is 16 bits
     t.tx_buffer=&comand;               //The data is the cmd itself
     t.user=(void*)0;         //D/C needs to be set to 0
     ret=spi_device_transmit(spi, &t);  //Transmit!
     assert(ret==ESP_OK);            //Should have had no issues.
-    comand= data;
-    memset(&t, 0, sizeof(t));       //Zero out the transaction
-    t.length=8;                    //Command is 8 bits
-    t.tx_buffer=&comand;               //The data is the cmd itself
-    t.user=(void*)0;         //D/C needs to be set to 0
-    ret=spi_device_transmit(spi, &t);  //Transmit!
-    assert(ret==ESP_OK);            //Should have had no issues.
+    pot_wiper=128;
+    ESP_LOGI(PTAG, "wiper value reset to %d",pot_wiper);
+    
 }
-
+//step potenciometer wiper a position up
 void pot_up(spi_device_handle_t spi)
 {
+    pot_wiper++;
     int8_t comand=8;
     esp_err_t ret;
     spi_transaction_t t;
@@ -91,8 +80,11 @@ void pot_up(spi_device_handle_t spi)
     assert(ret==ESP_OK);            //Should have had no issues.
     ESP_LOGI(PTAG, "pot up");
 }
+
+//step potenciometer wiper a position down
 void pot_down(spi_device_handle_t spi)
 {
+    pot_wiper--;
     int8_t comand=4;
     esp_err_t ret;
     spi_transaction_t t;
@@ -104,6 +96,28 @@ void pot_down(spi_device_handle_t spi)
     assert(ret==ESP_OK);            //Should have had no issues.
     ESP_LOGI(PTAG, "pot down");
 }
+
+// Set potenciometer wiper to a wiper position 0-128
+void pot_set(spi_device_handle_t spi,int potValue){
+    pot_reset(spi);
+    if(potValue < 129){
+        for(int i = pot_wiper; i > potValue; i--)
+        {
+            pot_wiper--;
+            int8_t comand=4;
+            esp_err_t ret;
+            spi_transaction_t t;
+            memset(&t, 0, sizeof(t));       //Zero out the transaction
+            t.length=8;                     //Command is 8 bits
+            t.tx_buffer=&comand;               //The data is the cmd itself
+            t.user=(void*)0;         //D/C needs to be set to 0
+            ret=spi_device_transmit(spi, &t);  //Transmit!
+            assert(ret==ESP_OK);            //Should have had no issues.
+        }
+        ESP_LOGI(PTAG, "wiper: %d", pot_wiper);
+    }
+}
+                   
 
 void setup_spi(){
     esp_err_t ret;
@@ -130,7 +144,7 @@ void setup_spi(){
     ESP_ERROR_CHECK(ret);
 
     // set the pot in 0
-    pot_set(spi_pot,100);
+    pot_reset(spi_pot);
 
 }
 //------WIFI------
@@ -340,12 +354,14 @@ static void udp_server_task(void *pvParameters)
                     // stop udp stream
                     int potValue= atoi(message);
                     ESP_LOGI(PTAG, "value: %d", potValue);
-                    pot_set(spi_pot, potValue);
-                }else if(strcmp("potup",code) == 0){
+                    pot_reset(spi_pot);
+                    pot_set(spi_pot,potValue);
+                    
+                }else if(strcmp("potup",code) == 0 && pot_wiper < 129){
                     // stop udp stream
                     ESP_LOGI(PTAG, "potup comand");
                     pot_up(spi_pot);
-                }else if(strcmp("potdown",code) == 0){
+                }else if(strcmp("potdown",code) == 0 && pot_wiper > 0){
                     // stop udp stream
                     ESP_LOGI(PTAG, "potdown comand");
                     pot_down(spi_pot);
