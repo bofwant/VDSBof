@@ -28,6 +28,8 @@
 
 #include "lwip/err.h"
 #include "lwip/sys.h"
+#include "lwip/sockets.h"
+#include <lwip/netdb.h>
 
 /* Definiciones ============================================================
 */
@@ -37,10 +39,20 @@
 #define EXAMPLE_ESP_WIFI_SSID      "vdswifi"
 #define EXAMPLE_ESP_WIFI_PASS      ""
 #define EXAMPLE_MAX_STA_CONN       1
+
+#define PORT 1260
 /* FreeRTOS event group to signal when we are connected*/
-static EventGroupHandle_t s_wifi_event_group;
+static EventGroupHandle_t wifi_event_group;
+
+
+const int IPV4_GOTIP_BIT = BIT0;
+const int IPV6_GOTIP_BIT = BIT1;
+
+const int STREAM_BIT = BIT3;
 
 static const char* WTAG = "wifi softAP";
+static const char* UTAG = "UDP server";
+
 
 #define BLINK_GPIO CONFIG_BLINK_GPIO
 static const char* ATAG = "adc";
@@ -54,7 +66,7 @@ bool ledon=false;
 //i2s number
 #define EXAMPLE_I2S_NUM           (0)
 //i2s sample rate
-#define EXAMPLE_I2S_SAMPLE_RATE   (10000)
+#define EXAMPLE_I2S_SAMPLE_RATE   (200000)
 //i2s data bits
 #define EXAMPLE_I2S_SAMPLE_BITS   (16)
 //enable display buffer for debug
@@ -72,6 +84,12 @@ bool ledon=false;
 
 int blink_time=1000;
 
+/* udp send packet data*/
+                bool udp_dataready=false;
+                int udp_socket;
+                char udp_data;
+                struct sockaddr_in6 udp_clientAddr;
+
 static esp_err_t event_handler(void *ctx, system_event_t *event)
 {
     switch(event->event_id) {
@@ -85,10 +103,18 @@ static esp_err_t event_handler(void *ctx, system_event_t *event)
                  MAC2STR(event->event_info.sta_disconnected.mac),
                  event->event_info.sta_disconnected.aid);
                  blink_time=1000;
+                 udp_dataready = false;
         break;
     case SYSTEM_EVENT_AP_STAIPASSIGNED:
         ESP_LOGI(WTAG, "IP ASSIGNED");
         blink_time=500;
+        xEventGroupSetBits(wifi_event_group, IPV4_GOTIP_BIT);
+        break;
+    case SYSTEM_EVENT_STA_GOT_IP:
+        xEventGroupSetBits(wifi_event_group, IPV4_GOTIP_BIT);
+        ESP_LOGI(WTAG, "SYSTEM_EVENT_STA_GOT_IP");
+        char *ip4 = ip4addr_ntoa(&event->event_info.got_ip.ip_info.ip);
+        ESP_LOGI(WTAG, "IPv4: %s", ip4);
         break;
     default:
         break;
@@ -98,7 +124,7 @@ static esp_err_t event_handler(void *ctx, system_event_t *event)
 
 void wifi_init_softap()
 {
-    s_wifi_event_group = xEventGroupCreate();
+    wifi_event_group = xEventGroupCreate();
 
     tcpip_adapter_init();
     ESP_ERROR_CHECK(esp_event_loop_init(event_handler, NULL));
@@ -124,11 +150,96 @@ void wifi_init_softap()
 
     ESP_LOGI(WTAG, "wifi_init_softap finished.SSID:%s password:%s",
              EXAMPLE_ESP_WIFI_SSID, EXAMPLE_ESP_WIFI_PASS);
+    
 }
 
+static void wait_for_conection()
+{
+    uint32_t bits = IPV4_GOTIP_BIT ;
+
+    ESP_LOGI(WTAG, "Waiting for client connection...");
+    xEventGroupWaitBits(wifi_event_group, bits, false, true, portMAX_DELAY);
+    ESP_LOGI(WTAG, "Connected to client");
+}
+
+static void udp_server_task(void *pvParameters)
+{
+    char rx_buffer[128];
+    char addr_str[128];
+    int addr_family;
+    int ip_protocol;
+
+    while (1) {
 
 
+        struct sockaddr_in destAddr;
+        destAddr.sin_addr.s_addr = htonl(INADDR_ANY);
+        destAddr.sin_family = AF_INET;
+        destAddr.sin_port = htons(PORT);
+        addr_family = AF_INET;
+        ip_protocol = IPPROTO_IP;
+        inet_ntoa_r(destAddr.sin_addr, addr_str, sizeof(addr_str) - 1);
 
+        int sock = socket(addr_family, SOCK_DGRAM, ip_protocol);
+        if (sock < 0) {
+            ESP_LOGE(UTAG, "Unable to create socket: errno %d", errno);
+            break;
+        }
+        ESP_LOGI(UTAG, "Socket created");
+
+        int err = bind(sock, (struct sockaddr *)&destAddr, sizeof(destAddr));
+        if (err < 0) {
+            ESP_LOGE(UTAG, "Socket unable to bind: errno %d", errno);
+        }
+        ESP_LOGI(UTAG, "Socket binded");
+
+        while (1) {
+
+            ESP_LOGI(UTAG, "Waiting for data");
+            struct sockaddr_in6 sourceAddr; // Large enough for both IPv4 or IPv6
+            socklen_t socklen = sizeof(sourceAddr);
+            int len = recvfrom(sock, rx_buffer, sizeof(rx_buffer) - 1, 0, (struct sockaddr *)&sourceAddr, &socklen);
+
+            // Error occured during receiving
+            if (len < 0) {
+                ESP_LOGE(UTAG, "recvfrom failed: errno %d", errno);
+                break;
+            }
+            // Data received
+            else {
+                // Get the sender's ip address as string
+                if (sourceAddr.sin6_family == PF_INET) {
+                    inet_ntoa_r(((struct sockaddr_in *)&sourceAddr)->sin_addr.s_addr, addr_str, sizeof(addr_str) - 1);
+                } else if (sourceAddr.sin6_family == PF_INET6) {
+                    inet6_ntoa_r(sourceAddr.sin6_addr, addr_str, sizeof(addr_str) - 1);
+                }
+
+                rx_buffer[len] = 0; // Null-terminate whatever we received and treat like a string...
+                ESP_LOGI(UTAG, "Received %d bytes from %s:", len, addr_str);
+                ESP_LOGI(UTAG, "%s", rx_buffer);
+                char code[]="code";
+                //int err = sendto(sock, rx_buffer, len, 0, (struct sockaddr *)&sourceAddr, sizeof(sourceAddr));
+                if(udp_dataready == false && rx_buffer=="start"){
+                    udp_dataready=true;
+                    udp_socket=sock;
+                    udp_clientAddr= sourceAddr;
+                    blink_time=250;
+                }
+                if (err < 0) {
+                    ESP_LOGE(UTAG, "Error occured during sending: errno %d", errno);
+                    break;
+                }
+            }
+        }
+
+        if (sock != -1) {
+            ESP_LOGE(UTAG, "Shutting down socket and restarting...");
+            shutdown(sock, 0);
+            close(sock);
+        }
+    }
+    vTaskDelete(NULL);
+}
 
 /**
  * @brief I2S ADC/DAC mode init.
@@ -181,7 +292,30 @@ void example_disp_buf(uint8_t* buf, int length)
         
     }
 }
+void send_buf(uint8_t* buf, int length)
+{
+    int l=length/2;
+    int adc_values[l];
+    
+    // err = sendto(udp_socket, buf, length, 0, (struct sockaddr *)&sourceAddr, sizeof(sourceAddr));
 
+    for (int i = 0; i < length; i++) {
+        //ESP_LOGI(ATAG,"%d  numb",i/2);
+        adc_values[i/2] = ((((int) (buf[i + 1] & 0xf) << 8) | ((buf[i + 0]))));
+        //ESP_LOGI(ATAG,"%d numero %d",adc_values[i/2],i/2);
+        i++;
+        
+    }
+    int err = sendto(udp_socket, adc_values, sizeof(adc_values), 0, (struct sockaddr *)&udp_clientAddr, sizeof(udp_clientAddr));
+     // int err = sendto(udp_socket, buf, length, 0, (struct sockaddr *)&udp_clientAddr, sizeof(udp_clientAddr));
+      
+        if (err < 0) {
+            ESP_LOGE(UTAG, "Error occured during sending: errno %d", errno);
+        }else{
+            ESP_LOGI(UTAG,"packet sent last n= %d",adc_values[0]);
+        }
+    //udp_dataready=false; blink_time=500;
+}                
 void adc_i2s_read_task(void* arg)
 {
     int i2s_read_len = EXAMPLE_I2S_READ_LEN;
@@ -191,7 +325,10 @@ void adc_i2s_read_task(void* arg)
     i2s_adc_enable(EXAMPLE_I2S_NUM);   
     while(1) {
         i2s_read(EXAMPLE_I2S_NUM, (void*) i2s_read_buff, i2s_read_len, &bytes_read, portMAX_DELAY);
-        example_disp_buf((uint8_t*) i2s_read_buff, 64);
+        //sexample_disp_buf((uint8_t*) i2s_read_buff, 64);
+        if(udp_dataready){
+            send_buf((uint8_t*) i2s_read_buff, 64);
+        }
         vTaskDelay(200 / portTICK_RATE_MS);
     }
 }
@@ -261,6 +398,10 @@ void app_main()
     xTaskCreate(&blink_task, "blinky", 512,NULL,5,NULL );
 
     //xTaskCreate(adc_read_task, "ADC read task", 2048, NULL, 5, NULL);
-    //xTaskCreate(adc_i2s_read_task, "ADC read i2s task", 2048, NULL, 5, NULL);
+    xTaskCreate(adc_i2s_read_task, "ADC read i2s task", 4096, NULL, 5, NULL);
+
+    wait_for_conection();
+    ESP_LOGI(UTAG, "Start Udp server");
+    xTaskCreate(udp_server_task, "udp_server", 4096, NULL, 5, NULL);
     return ESP_OK;
 } 
