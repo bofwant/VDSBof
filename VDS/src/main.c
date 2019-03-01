@@ -49,6 +49,100 @@ spi_device_handle_t spi_pot;
 static const char* PTAG = "Potentiometer";
 int pot_wiper=10;
 
+//------WIFI------
+#define EXAMPLE_ESP_WIFI_SSID      "vdswifi"
+#define EXAMPLE_ESP_WIFI_PASS      ""
+#define EXAMPLE_MAX_STA_CONN       1
+
+#define PORT 1260
+/* FreeRTOS event group to signal when we are connected*/
+static EventGroupHandle_t wifi_event_group;
+
+
+const int IPV4_GOTIP_BIT = BIT0;
+const int IPV6_GOTIP_BIT = BIT1;
+
+const int STREAM_BIT = BIT3;
+
+static const char* WTAG = "wifi softAP";
+static const char* UTAG = "UDP server";
+
+
+#define BLINK_GPIO 2
+#define A_GPIO 22
+#define B_GPIO 23
+
+
+static const char* ATAG = "adc";
+#define V_REF   1100
+#define ADC1_TEST_CHANNEL (ADC1_CHANNEL_0)
+
+#define PARTITION_NAME   "storage"
+bool ledon=false;
+
+//------ADC------
+//i2s number
+#define EXAMPLE_I2S_NUM           (0)
+//i2s sample rate
+#define EXAMPLE_I2S_SAMPLE_RATE   (200000)
+//i2s data bits
+#define EXAMPLE_I2S_SAMPLE_BITS   (16)
+//enable display buffer for debug
+#define EXAMPLE_I2S_BUF_DEBUG     (0)
+//I2S read buffer length
+#define EXAMPLE_I2S_READ_LEN      (16 * 1024)
+//I2S data format
+#define EXAMPLE_I2S_FORMAT        (I2S_CHANNEL_FMT_RIGHT_LEFT)
+//I2S channel number
+#define EXAMPLE_I2S_CHANNEL_NUM   ((EXAMPLE_I2S_FORMAT < I2S_CHANNEL_FMT_ONLY_RIGHT) ? (2) : (1))
+//I2S built-in ADC unit
+#define I2S_ADC_UNIT              ADC_UNIT_1
+//I2S built-in ADC channel
+#define I2S_ADC_CHANNEL           ADC1_CHANNEL_0
+
+int blink_time=1000;
+
+/* udp send packet data*/
+                bool udp_dataready=false;
+                int udp_socket;
+                char udp_data;
+                struct sockaddr_in6 udp_clientAddr;
+
+
+void setup_mux(){
+    gpio_pad_select_gpio(A_GPIO);
+    gpio_pad_select_gpio(B_GPIO);
+    /* Set the GPIO as a push/pull output */
+    gpio_set_direction(A_GPIO, GPIO_MODE_OUTPUT);
+    gpio_set_direction(B_GPIO, GPIO_MODE_OUTPUT);
+}
+
+void set_mux_ch(uint8_t chanel){
+
+    switch (chanel)
+    {
+        case 0:
+            gpio_set_level(B_GPIO, 0);
+            gpio_set_level(A_GPIO, 0);
+            break;
+        case 1:
+            gpio_set_level(B_GPIO, 0);
+            gpio_set_level(A_GPIO, 1);
+            break;
+        case 2:
+            gpio_set_level(B_GPIO, 1);
+            gpio_set_level(A_GPIO, 0);
+            break;
+        case 3:
+            gpio_set_level(B_GPIO, 1);
+            gpio_set_level(A_GPIO, 1);
+            break;
+    
+        default:
+            break;
+    }
+}
+
 //reset potenciometer to max value
 void pot_reset(spi_device_handle_t spi)
 {
@@ -144,64 +238,9 @@ void setup_spi(){
     ESP_ERROR_CHECK(ret);
 
     // set the pot in 0
-    pot_reset(spi_pot);
+    pot_set(spi_pot,0);
 
 }
-//------WIFI------
-#define EXAMPLE_ESP_WIFI_SSID      "vdswifi"
-#define EXAMPLE_ESP_WIFI_PASS      ""
-#define EXAMPLE_MAX_STA_CONN       1
-
-#define PORT 1260
-/* FreeRTOS event group to signal when we are connected*/
-static EventGroupHandle_t wifi_event_group;
-
-
-const int IPV4_GOTIP_BIT = BIT0;
-const int IPV6_GOTIP_BIT = BIT1;
-
-const int STREAM_BIT = BIT3;
-
-static const char* WTAG = "wifi softAP";
-static const char* UTAG = "UDP server";
-
-
-#define BLINK_GPIO CONFIG_BLINK_GPIO
-static const char* ATAG = "adc";
-#define V_REF   1100
-#define ADC1_TEST_CHANNEL (ADC1_CHANNEL_0)
-
-#define PARTITION_NAME   "storage"
-bool ledon=false;
-
-//------ADC------
-//i2s number
-#define EXAMPLE_I2S_NUM           (0)
-//i2s sample rate
-#define EXAMPLE_I2S_SAMPLE_RATE   (200000)
-//i2s data bits
-#define EXAMPLE_I2S_SAMPLE_BITS   (16)
-//enable display buffer for debug
-#define EXAMPLE_I2S_BUF_DEBUG     (0)
-//I2S read buffer length
-#define EXAMPLE_I2S_READ_LEN      (16 * 1024)
-//I2S data format
-#define EXAMPLE_I2S_FORMAT        (I2S_CHANNEL_FMT_RIGHT_LEFT)
-//I2S channel number
-#define EXAMPLE_I2S_CHANNEL_NUM   ((EXAMPLE_I2S_FORMAT < I2S_CHANNEL_FMT_ONLY_RIGHT) ? (2) : (1))
-//I2S built-in ADC unit
-#define I2S_ADC_UNIT              ADC_UNIT_1
-//I2S built-in ADC channel
-#define I2S_ADC_CHANNEL           ADC1_CHANNEL_0
-
-int blink_time=1000;
-
-/* udp send packet data*/
-                bool udp_dataready=false;
-                int udp_socket;
-                char udp_data;
-                struct sockaddr_in6 udp_clientAddr;
-
 static esp_err_t event_handler(void *ctx, system_event_t *event)
 {
     switch(event->event_id) {
@@ -365,6 +404,10 @@ static void udp_server_task(void *pvParameters)
                     // stop udp stream
                     ESP_LOGI(PTAG, "potdown comand");
                     pot_down(spi_pot);
+                }else if(strcmp("muxch",code) == 0){
+                    int muxCh= atoi(message);
+                    ESP_LOGI(PTAG, "mux chanel %d",muxCh);
+                    set_mux_ch(muxCh);
                 }
                 /*++++++++++++++++++++ Comandos Udp++++++++++++++++++++++++++*/
                 if (err < 0) {
@@ -515,7 +558,9 @@ void hello_task(void *pvParameter)
 
 void app_main()
 {
-
+//------setup mux--------------
+setup_mux();
+set_mux_ch(3); //maximun attenuation
 //------setup spi pot-----------
 setup_spi();
 //-------------------- WIFI----------------------
