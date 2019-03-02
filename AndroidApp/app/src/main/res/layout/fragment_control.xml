@@ -65,7 +65,7 @@
             android:id="@+id/divider"
             android:layout_width="match_parent"
             android:layout_height="10dp"
-            android:background="?android:attr/listDivider" />
+            android:background="#00ffffff" />
 
         <TextView
             android:id="@+id/textView3"

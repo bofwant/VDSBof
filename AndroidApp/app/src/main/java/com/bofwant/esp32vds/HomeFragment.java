@@ -1,5 +1,6 @@
 package com.bofwant.esp32vds;
 
+import android.app.Activity;
 import android.content.Context;
 import android.net.Uri;
 import android.os.Bundle;
@@ -7,6 +8,9 @@ import android.support.v4.app.Fragment;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
+import android.widget.TextView;
+import android.widget.ToggleButton;
 
 
 /**
@@ -26,7 +30,9 @@ public class HomeFragment extends Fragment {
     // TODO: Rename and change types of parameters
     private String mParam1;
     private String mParam2;
-
+    public MainActivity mainActivity;
+    public Button conectButton;
+    public TextView logText;
     private OnFragmentInteractionListener mListener;
 
     public HomeFragment() {
@@ -83,6 +89,7 @@ public class HomeFragment extends Fragment {
             throw new RuntimeException(context.toString()
                     + " must implement OnFragmentInteractionListener");
         }
+
     }
 
     @Override
@@ -91,6 +98,33 @@ public class HomeFragment extends Fragment {
         mListener = null;
     }
 
+    @Override
+    public void onStart() {
+        super.onStart();
+
+        conectButton = (Button) getView().findViewById(R.id.powerButton);
+        conectButton.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                // Code here executes on main thread after user presses
+                if(mainActivity==null){
+                    mainActivity=(MainActivity)getActivity();
+                }
+                changePowerButton(mainActivity.conected);
+            }
+        });
+    }
+
+    public void changePowerButton(boolean conected){
+        if(conected){
+            ////disconect
+            conectButton.setText("Desconectado");
+            conectButton.setCompoundDrawablesWithIntrinsicBounds(getContext().getResources().getDrawable(R.drawable.ic_baseline_power_off_24px),null,null,null);
+        }else {
+            ///conect
+            conectButton.setText("Conectado");
+            conectButton.setCompoundDrawablesWithIntrinsicBounds(getContext().getResources().getDrawable(R.drawable.ic_power_black_24dp),null,null,null);
+        }
+    }
     /**
      * This interface must be implemented by activities that contain this
      * fragment to allow an interaction in this fragment to be communicated
