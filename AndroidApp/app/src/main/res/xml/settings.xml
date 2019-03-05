@@ -4,13 +4,22 @@
         android:title="UDP">
 
         <EditTextPreference
-            android:key="serverip_preference"
+            android:key="serverIp_preference"
             android:title="Server IP"
             android:summary="esp32 host IP"
             android:dialogTitle="IP del esp32"
             android:hint="default IP 192.168.4.1"
             android:defaultValue="192.168.4.1"/>
-        <SwitchPreference />
+
+        <EditTextPreference
+            android:key="serverPort_preference"
+            android:title="Server Port"
+            android:summary="esp32 UDP port IP"
+            android:dialogTitle="Puerto UDP del esp32"
+            android:hint="default Port 1268"
+            android:defaultValue="1260"
+            android:inputType="numberDecimal"
+            android:digits="0123456789"/>
 
     </PreferenceCategory>
     <PreferenceCategory

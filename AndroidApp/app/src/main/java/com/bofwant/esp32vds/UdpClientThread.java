@@ -1,6 +1,9 @@
 package com.bofwant.esp32vds;
 
+import android.content.Context;
+import android.os.Debug;
 import android.os.Message;
+import android.util.Log;
 
 import java.io.IOException;
 import java.net.DatagramPacket;
@@ -16,14 +19,19 @@ public class UdpClientThread extends Thread{
     private boolean running;
     MainActivity.UdpClientHandler handler;
 
+
+
     DatagramSocket socket;
     InetAddress address;
+    Context context;
 
-    public UdpClientThread(String addr, int port, MainActivity.UdpClientHandler handler) {
+    public UdpClientThread(String addr, int port, MainActivity.UdpClientHandler handler, Context context) {
         super();
         dstAddress = addr;
         dstPort = port;
         this.handler = handler;
+        this.context=context;
+
     }
 
     public void setRunning(boolean running){
@@ -43,22 +51,24 @@ public class UdpClientThread extends Thread{
         running = true;
 
         try {
-            socket = new DatagramSocket();
+            Log.d("udp","starting socket");
+            socket = new DatagramSocket(dstPort);
+
             address = InetAddress.getByName(dstAddress);
 
-            // send request
-            byte[] buf = new byte[256];
-
+            // start request
+            byte[] buf = context.getResources().getString(R.string.esp_start).getBytes();
             DatagramPacket packet =
                     new DatagramPacket(buf, buf.length, address, dstPort);
             socket.send(packet);
-
-            sendState("connected");
+            Log.d("udp",context.getResources().getString(R.string.esp_start)+" sent");
+            sendState(context.getResources().getString(R.string.tag_conected));
 
             // get response
+            buf = new byte[256];
             packet = new DatagramPacket(buf, buf.length);
 
-
+            Log.d("udp","waiting");
             socket.receive(packet);
             String line = new String(packet.getData(), 0, packet.getLength());
 

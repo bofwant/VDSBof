@@ -385,6 +385,7 @@ static void udp_server_task(void *pvParameters)
                     udp_socket=sock;
                     udp_clientAddr= sourceAddr;
                     blink_time=250;
+                    
                 }else if(strcmp("stop",code) == 0){
                     // stop udp stream
                         udp_dataready = false;

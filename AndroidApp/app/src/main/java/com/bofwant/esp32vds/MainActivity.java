@@ -1,10 +1,12 @@
 package com.bofwant.esp32vds;
 
 import android.app.FragmentTransaction;
+import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
+import android.preference.PreferenceManager;
 import android.support.annotation.NonNull;
 import android.support.design.widget.BottomNavigationView;
 import android.support.v4.app.Fragment;
@@ -19,7 +21,8 @@ public class MainActivity extends AppCompatActivity implements HomeFragment.OnFr
 
     //private TextView mTextMessage;
     public boolean conected = false;
-
+    UdpClientHandler udpClientHandler;
+    UdpClientThread udpClientThread;
     final HomeFragment fragment1 = new HomeFragment();
     final GraphFragment fragment2 = new GraphFragment();
     final SettingsFragment fragment3 = new SettingsFragment();
@@ -90,6 +93,7 @@ public class MainActivity extends AppCompatActivity implements HomeFragment.OnFr
         fm.beginTransaction().add(R.id.main_container, fragment2, "2").hide(fragment2).commit();
         fm.beginTransaction().add(R.id.main_container,fragment1, "1").commit();
 
+        udpClientHandler = new UdpClientHandler(this);
 
 
 
@@ -99,11 +103,27 @@ public class MainActivity extends AppCompatActivity implements HomeFragment.OnFr
     public void onFragmentInteraction(Uri uri) {
 
     }
+    //Start the udp client and the connection with esp32
+    public void ConectEsp32(){
 
+        SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
+        String address = SP.getString("serverIp_preference","192.168.4.1");
+        int port =  Integer.valueOf(SP.getString("serverPort_preference","1260"));
+
+        udpClientThread = new UdpClientThread(address, port, udpClientHandler,this);
+        udpClientThread.start();
+    }
+    public void disconectEsp32(){
+        udpClientThread = null;
+        conected=false;
+        fragment1.changePowerButton(conected);
+
+    }
     public static class UdpClientHandler extends Handler {
         public static final int UPDATE_STATE = 0;
         public static final int UPDATE_MSG = 1;
         public static final int UPDATE_END = 2;
+        public static final int STREAM_PKG = 3;
         private MainActivity parent;
 
         public UdpClientHandler(MainActivity parent) {
@@ -117,12 +137,22 @@ public class MainActivity extends AppCompatActivity implements HomeFragment.OnFr
             switch (msg.what){
                 case UPDATE_STATE:
                     //parent.updateState((String)msg.obj);
+                    parent.fragment1.logText.append("Update Status: "+(String)msg.obj);
+                    parent.fragment1.logText.append("\n");
+                    if(((String)msg.obj).equals(parent.getResources().getString(R.string.tag_conected))){
+                        parent.conected=true;
+                        parent.fragment1.changePowerButton(parent.conected);
+                    }
                     break;
                 case UPDATE_MSG:
                     //parent.updateRxMsg((String)msg.obj);
+                    parent.fragment1.logText.append("Update MSG: "+(String)msg.obj);
+                    parent.fragment1.logText.append("\n");
                     break;
                 case UPDATE_END:
-                    //parent.clientEnd();
+                    parent.disconectEsp32();
+                    break;
+                case STREAM_PKG:
                     break;
                 default:
                     super.handleMessage(msg);

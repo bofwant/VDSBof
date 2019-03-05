@@ -103,24 +103,29 @@ public class HomeFragment extends Fragment {
         super.onStart();
 
         conectButton = (Button) getView().findViewById(R.id.powerButton);
+        logText=(TextView) getView().findViewById(R.id.logTextView);
         conectButton.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 // Code here executes on main thread after user presses
                 if(mainActivity==null){
                     mainActivity=(MainActivity)getActivity();
                 }
-                changePowerButton(mainActivity.conected);
+                if(mainActivity.conected){
+                    mainActivity.disconectEsp32();
+                }else {
+                    mainActivity.ConectEsp32();
+                }
             }
         });
     }
 
     public void changePowerButton(boolean conected){
         if(conected){
-            ////disconect
+            ////disconnect
             conectButton.setText("Desconectado");
             conectButton.setCompoundDrawablesWithIntrinsicBounds(getContext().getResources().getDrawable(R.drawable.ic_baseline_power_off_24px),null,null,null);
         }else {
-            ///conect
+            ///connect
             conectButton.setText("Conectado");
             conectButton.setCompoundDrawablesWithIntrinsicBounds(getContext().getResources().getDrawable(R.drawable.ic_power_black_24dp),null,null,null);
         }
