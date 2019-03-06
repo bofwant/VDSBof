@@ -116,8 +116,8 @@ public class GraphFragment extends Fragment {
         dSeries=new LineGraphSeries<>(generateDataPoints());
         graph=(GraphView) getView().findViewById(R.id.graph);
         graph.getViewport().setYAxisBoundsManual(true);
-        graph.getViewport().setMinY(0);
-        graph.getViewport().setMaxY(4000);
+        graph.getViewport().setMinY(-1.5);
+        graph.getViewport().setMaxY(1.5);
 
         graph.getViewport().setXAxisBoundsManual(true);
         graph.getViewport().setMinX(0);
@@ -156,7 +156,7 @@ public class GraphFragment extends Fragment {
     public DataPoint[] generateDataPoints() {
         DataPoint[] values = new DataPoint[200000];
         for (int i=0; i<200000; i++) {
-            values[i]= new DataPoint(i*0.000005, mainActivity.sampleBuffer[i]);
+            values[i]= new DataPoint(i*0.000005, (2000-mainActivity.sampleBuffer[i])*0.00075);
         }
         return values;
     }
