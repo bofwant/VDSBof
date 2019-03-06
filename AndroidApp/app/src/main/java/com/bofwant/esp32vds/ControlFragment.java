@@ -139,6 +139,7 @@ public class ControlFragment extends Fragment {
             @Override
             public void onStopTrackingTouch(SeekBar seekBar) {
                 mainActivity.txQueue.offer(getActivity().getResources().getString(R.string.esp_pot)+" "+String.valueOf(pot));
+                mainActivity.potValue=pot;
                 Toast.makeText(getActivity(), "Wiper "+String.valueOf(pot), Toast.LENGTH_SHORT).show();
 
             }
@@ -160,6 +161,7 @@ public class ControlFragment extends Fragment {
             @Override
             public void onStopTrackingTouch(SeekBar seekBar) {
                 mainActivity.txQueue.offer(getActivity().getResources().getString(R.string.esp_mux)+" "+String.valueOf(muxCh));
+                mainActivity.muxChanel=muxCh;
                 Toast.makeText(getActivity(), "Mux Chanel "+String.valueOf(muxCh), Toast.LENGTH_SHORT).show();
 
             }

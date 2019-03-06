@@ -38,6 +38,8 @@ public class MainActivity extends AppCompatActivity implements HomeFragment.OnFr
     final ControlFragment fragment4 = new ControlFragment();
     final FragmentManager fm = getSupportFragmentManager();
 
+    int potValue,muxChanel;
+
     Fragment active = fragment1;
     private BottomNavigationView.OnNavigationItemSelectedListener mOnNavigationItemSelectedListener
             = new BottomNavigationView.OnNavigationItemSelectedListener() {

@@ -118,23 +118,32 @@ public class GraphFragment extends Fragment {
         }
         dSeries=new LineGraphSeries<>(generateDataPoints());
         graph=(GraphView) getView().findViewById(R.id.graph);
+        graph.getViewport().setYAxisBoundsManual(true);
+        graph.getViewport().setXAxisBoundsManual(true);
+        SharedPreferences SaP = PreferenceManager.getDefaultSharedPreferences(mainActivity);
+        float offset =  Float.valueOf(SaP.getString("offset_preference","0.5"));
+        float att =  Float.valueOf(SaP.getString("attscale_preference","10"));
+        float gain =  Float.valueOf(SaP.getString("gain_preference","10"));
+        float timescale =  Float.valueOf(SaP.getString("timescale_preference","200000"));
         graph.getGridLabelRenderer().setLabelFormatter(new DefaultLabelFormatter() {
             @Override
             public String formatLabel(double value, boolean isValueX) {
+                SharedPreferences SaP = PreferenceManager.getDefaultSharedPreferences(mainActivity);
+                String label=SaP.getString("timestamp_preference","uS");
                 if (isValueX) {
-                    return super.formatLabel(value, isValueX) + " mS";
+                    return super.formatLabel(value, isValueX) +label;
                 } else {
                     return super.formatLabel(value, isValueX) + " V";
                 }
             }
         });
-        graph.getViewport().setYAxisBoundsManual(true);
-        graph.getViewport().setMinY(-1.5);
-        graph.getViewport().setMaxY(1.5);
 
-        graph.getViewport().setXAxisBoundsManual(true);
+        float yatt=(float) Math.pow(att,mainActivity.muxChanel);
+        float yscale=(1+(mainActivity.potValue*gain/128))/yatt;
+        graph.getViewport().setMinY(-1.5*yscale);
+        graph.getViewport().setMaxY(1.5*yscale);
         graph.getViewport().setMinX(0);
-        graph.getViewport().setMaxX(1000);
+        graph.getViewport().setMaxX(timescale);
 
         // enable scaling and scrolling
         graph.getViewport().setScalable(true);
@@ -150,6 +159,30 @@ public class GraphFragment extends Fragment {
                     changeUpdateButton(false);
                     mHandler.removeCallbacks(gTimer);
                 }else {
+                    SharedPreferences SaP = PreferenceManager.getDefaultSharedPreferences(mainActivity);
+                    float offset =  Float.valueOf(SaP.getString("offset_preference","0.5"));
+                    float att =  Float.valueOf(SaP.getString("attscale_preference","10"));
+                    float gain =  Float.valueOf(SaP.getString("gain_preference","10"));
+                    float timescale =  Float.valueOf(SaP.getString("timescale_preference","200000"));
+                    graph.getGridLabelRenderer().setLabelFormatter(new DefaultLabelFormatter() {
+                        @Override
+                        public String formatLabel(double value, boolean isValueX) {
+                            SharedPreferences SaP = PreferenceManager.getDefaultSharedPreferences(mainActivity);
+                            String label=SaP.getString("timestamp_preference","uS");
+                            if (isValueX) {
+                                return super.formatLabel(value, isValueX) +label;
+                            } else {
+                                return super.formatLabel(value, isValueX) + " V";
+                            }
+                        }
+                    });
+
+                    float yatt=(float) Math.pow(att,mainActivity.muxChanel);
+                    float yscale=(1+(mainActivity.potValue*gain/128))/yatt;
+                    graph.getViewport().setMinY(-1.5*yscale);
+                    graph.getViewport().setMaxY(1.5*yscale);
+                    graph.getViewport().setMinX(0);
+                    graph.getViewport().setMaxX(timescale);
                     updating=true;
                     changeUpdateButton(true);
                     gTimer = new Runnable() {
@@ -168,10 +201,19 @@ public class GraphFragment extends Fragment {
     }
     public DataPoint[] generateDataPoints() {
         SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(mainActivity);
+        float timescale =  Float.valueOf(SP.getString("timescale_preference","200000"));
+        float att =  Float.valueOf(SP.getString("attscale_preference","10"));
+        float gain =  Float.valueOf(SP.getString("gain_preference","10"));
         float offset =  Float.valueOf(SP.getString("offset_preference","0.5"));
+        float yatt=(float) Math.pow(att,mainActivity.muxChanel);
+        float yscale=(1+(mainActivity.potValue*gain/128))/yatt;
         DataPoint[] values = new DataPoint[200000];
+        double x,y;
         for (int i=0; i<200000; i++) {
-            values[i]= new DataPoint(i*0.005, ((2000-mainActivity.sampleBuffer[i])*0.00075)+offset);
+            x=i*timescale/200000;
+            y=((2000-mainActivity.sampleBuffer[i])*0.00075*yscale)+offset/yatt;
+            //Log.d("graph","x="+String.valueOf(x)+" y="+String.valueOf(y));
+            values[i]= new DataPoint(x, y);
         }
         return values;
     }

@@ -37,6 +37,28 @@
             android:summary="adc ganancia variable AC"
             android:dialogTitle="ganancia variable AC del esp32"
             android:hint="ganancia 11"
-            android:defaultValue="11"/>
+            android:defaultValue="10"/>
+        <EditTextPreference
+            android:key="timescale_preference"
+            android:title="ADC frecuencia de muestreo"
+            android:summary="adc frecuencia de muestreo"
+            android:dialogTitle="frecuencia de muestreo del  esp32 samples per second"
+            android:hint="samples"
+            android:defaultValue="200000"/>
+        <EditTextPreference
+            android:key="timestamp_preference"
+            android:title="ADC etiqueta eje X"
+            android:summary="ADC etiqueta eje X"
+            android:dialogTitle="ADC etiqueta eje X del visualizador"
+            android:hint="mS"
+            android:defaultValue="uS"/>
+
+        <EditTextPreference
+            android:key="attscale_preference"
+            android:title="ADC escala de atenuacion por canal"
+            android:summary="ADC escala de atenuacion por canal"
+            android:dialogTitle="ADC escala de atenuacion por canal del  esp32"
+            android:hint="scales"
+            android:defaultValue="10"/>
     </PreferenceCategory>
 </PreferenceScreen>
