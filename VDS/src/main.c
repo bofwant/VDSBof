@@ -111,17 +111,10 @@ int blink_time=1000;
                 char udp_data;
                 struct sockaddr_in6 udp_clientAddr;
 
-
-void setup_mux(){
-    gpio_pad_select_gpio(A_GPIO);
-    gpio_pad_select_gpio(B_GPIO);
-    /* Set the GPIO as a push/pull output */
-    gpio_set_direction(A_GPIO, GPIO_MODE_OUTPUT);
-    gpio_set_direction(B_GPIO, GPIO_MODE_OUTPUT);
-}
+uint8_t muxChannel=0;
 
 void set_mux_ch(uint8_t chanel){
-
+    muxChannel=chanel;
     switch (chanel)
     {
         case 0:
@@ -144,6 +137,14 @@ void set_mux_ch(uint8_t chanel){
         default:
             break;
     }
+}
+void setup_mux(){
+    gpio_pad_select_gpio(A_GPIO);
+    gpio_pad_select_gpio(B_GPIO);
+    /* Set the GPIO as a push/pull output */
+    gpio_set_direction(A_GPIO, GPIO_MODE_OUTPUT);
+    gpio_set_direction(B_GPIO, GPIO_MODE_OUTPUT);
+    set_mux_ch(3);
 }
 
 //reset potenciometer to max value
@@ -385,12 +386,13 @@ static void udp_server_task(void *pvParameters)
                 ESP_LOGI(UTAG, "message: %s", message);
                 if(udp_dataready == false && strcmp("start",code) == 0){
                     // set data for udp stream
+                   
                     udp_dataready=true;
                     udp_socket=sock;
                     udp_clientAddr= sourceAddr;
                     blink_time=250;
                     int err = sendto(udp_socket, code, sizeof(code)+1, 0, (struct sockaddr *)&udp_clientAddr, sizeof(udp_clientAddr));
-    
+
                 }else if(strcmp("stop",code) == 0){
                     // stop udp stream
                         udp_dataready = false;
@@ -418,7 +420,7 @@ static void udp_server_task(void *pvParameters)
                 }
                 /*++++++++++++++++++++ Comandos Udp++++++++++++++++++++++++++*/
                 if (err < 0) {
-                    ESP_LOGE(UTAG, "Error occured during sending: errno %d", errno);
+                    ESP_LOGE(UTAG, "Error occured during sending: errno %d", err);
                     break;
                 }
                 
@@ -507,14 +509,44 @@ void send_buf(uint8_t* buf, int length)
         if (errcheck < 0) {
             ESP_LOGE(UTAG, "Error occured during sending: errno %d", errno);
         }else{
-            testtime=testtime-esp_timer_get_time();
-            ESP_LOGI(UTAG,"packet sent last n= %d",(((int) (buf[1] & 0xf) << 8) | ((buf[0]))));
-            ESP_LOGI(UTAG,"time t= %d uS",testtime);
+            //testtime=testtime-esp_timer_get_time();
+            //ESP_LOGI(UTAG,"packet sent last n= %d",(((int) (buf[1] & 0xf) << 8) | ((buf[0]))));
+            //ESP_LOGI(UTAG,"time t= %d uS",testtime);
         }
     //udp_dataready=false; blink_time=500;
-}                
+}  
+
+void send_control()
+{
+        
+         char buf[100]="";
+        char* tx;
+        char wiper[10]="",mux[10]="";
+        int error;
+        itoa(muxChannel,mux,10);
+        
+        itoa(pot_wiper,wiper,10);
+        ESP_LOGI(UTAG,"Updating control 1 %s",wiper);
+        ESP_LOGI(UTAG,"Updating control 2 %s",mux);
+        strcat(buf,"control ");
+        strcat(buf,wiper);
+        strcat(buf," ");
+        strcat(buf,mux);
+        ESP_LOGI(UTAG,"Updating control 3 %s",buf);
+        tx=buf;
+        error = sendto(udp_socket, tx, sizeof(tx), 0, (struct sockaddr *)&udp_clientAddr, sizeof(udp_clientAddr));
+      
+        if (error < 0) {
+            ESP_LOGE(UTAG, "Error occured during sending: errno %d", error);
+        }else{
+             ESP_LOGI(UTAG,"Updating control %s",tx);
+        }
+}  
+
+
 void adc_i2s_read_task(void* arg)
 {
+    int controlCount=0;
     int i2s_read_len = EXAMPLE_I2S_READ_LEN;
     size_t bytes_read, bytes_written;
     char* i2s_read_buff = (char*) calloc(i2s_read_len, sizeof(char));
@@ -525,13 +557,22 @@ void adc_i2s_read_task(void* arg)
         i2s_read(EXAMPLE_I2S_NUM, (void*) i2s_read_buff, i2s_read_len, &bytes_read, portMAX_DELAY);
         //sexample_disp_buf((uint8_t*) i2s_read_buff, 64);
         if(udp_dataready){
-            send_buf((uint8_t*) i2s_read_buff, i2s_read_len);
+            if(controlCount > 100){
+                send_control();
+                controlCount=0;
+            }else
+            {
+                send_buf((uint8_t*) i2s_read_buff, i2s_read_len);
+            }
+            
+            controlCount++; 
+           
         }
         //vTaskDelay(200 / portTICK_RATE_MS);
     }
 }
 
-
+   
 
 
 void blink_task(void *pvParameter)

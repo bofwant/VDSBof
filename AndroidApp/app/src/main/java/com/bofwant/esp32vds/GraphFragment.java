@@ -121,7 +121,7 @@ public class GraphFragment extends Fragment {
 
         graph.getViewport().setXAxisBoundsManual(true);
         graph.getViewport().setMinX(0);
-        graph.getViewport().setMaxX(200000);
+        graph.getViewport().setMaxX(1);
 
         // enable scaling and scrolling
         graph.getViewport().setScalable(true);
@@ -144,10 +144,10 @@ public class GraphFragment extends Fragment {
                         public void run() {
                             updating=true;
                             dSeries.resetData(generateDataPoints());
-                            mHandler.postDelayed(this, 1000);
+                            mHandler.postDelayed(this, 100);
                         }
                     };
-                    mHandler.postDelayed(gTimer, 1000);
+                    mHandler.postDelayed(gTimer, 100);
                 }
 
             }
@@ -156,7 +156,7 @@ public class GraphFragment extends Fragment {
     public DataPoint[] generateDataPoints() {
         DataPoint[] values = new DataPoint[200000];
         for (int i=0; i<200000; i++) {
-            values[i]= new DataPoint(i, mainActivity.sampleBuffer[i]);
+            values[i]= new DataPoint(i*0.000005, mainActivity.sampleBuffer[i]);
         }
         return values;
     }

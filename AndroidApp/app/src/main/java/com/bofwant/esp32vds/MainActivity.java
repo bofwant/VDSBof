@@ -18,6 +18,11 @@ import android.view.MenuItem;
 import com.jjoe64.graphview.series.DataPoint;
 import com.jjoe64.graphview.series.LineGraphSeries;
 
+import java.util.Collection;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.Queue;
+
 public class MainActivity extends AppCompatActivity implements HomeFragment.OnFragmentInteractionListener,GraphFragment.OnFragmentInteractionListener,ControlFragment.OnFragmentInteractionListener {
 
     //private TextView mTextMessage;
@@ -25,6 +30,7 @@ public class MainActivity extends AppCompatActivity implements HomeFragment.OnFr
     public short sampleBuffer[]=new short[200000];
     UdpAdcHandler udpAdcHandler;
     UdpAdcThread udpAdcThread;
+    Queue<String> txQueue;
     final HomeFragment fragment1 = new HomeFragment();
     final GraphFragment fragment2 = new GraphFragment();
     final SettingsFragment fragment3 = new SettingsFragment();
@@ -85,7 +91,10 @@ public class MainActivity extends AppCompatActivity implements HomeFragment.OnFr
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
+        txQueue=new LinkedList<String>();
+        if(txQueue.peek() == null){
+            Log.d("udp control","queue empty");
+        }
         setContentView(R.layout.activity_main);
         //mTextMessage = (TextView) findViewById(R.id.message);
         BottomNavigationView navigation = (BottomNavigationView) findViewById(R.id.navigation);

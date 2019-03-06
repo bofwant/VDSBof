@@ -13,6 +13,10 @@
 
     <string name="esp_start">start 1</string>
     <string name="esp_stop">stop 1</string>
+    <string name="esp_pot">pot </string>
+    <string name="esp_potup">potup 1</string>
+    <string name="esp_potdown">potdown 1</string>
+    <string name="esp_mux">muxch </string>
 
     <!-- TODO: Remove or change this placeholder text -->
     <string name="hello_blank_fragment">Hello blank fragment</string>

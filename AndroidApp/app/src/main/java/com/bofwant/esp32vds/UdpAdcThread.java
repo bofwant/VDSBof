@@ -70,12 +70,18 @@ public class UdpAdcThread extends Thread{
             //sendState(context.getResources().getString(R.string.tag_conected));
             // get response
             while(running){
+                if(activity.txQueue.peek() != null){
+                    Log.d("udp control",activity.txQueue.peek());
+                    buf = activity.txQueue.poll().getBytes();
+                    packet = new DatagramPacket(buf, buf.length, address, dstPort);
+                    socket.send(packet);
+                }
                 buf = new byte[2000];
                 packet = new DatagramPacket(buf, buf.length);
 
-                Log.d("udp","waiting");
+                //Log.d("udp","waiting");
                 socket.receive(packet);
-                Log.d("udp packet",String.valueOf(packet.getLength()));
+                //Log.d("udp packet",String.valueOf(packet.getLength()));
 
                 if(packet.getLength()<200){
                     String line = new String(packet.getData(), 0, packet.getLength());

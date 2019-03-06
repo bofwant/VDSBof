@@ -7,6 +7,11 @@ import android.support.v4.app.Fragment;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
+import android.widget.ImageButton;
+import android.widget.SeekBar;
+import android.widget.TextView;
+import android.widget.Toast;
 
 
 /**
@@ -26,7 +31,10 @@ public class ControlFragment extends Fragment {
     // TODO: Rename and change types of parameters
     private String mParam1;
     private String mParam2;
-
+    public MainActivity mainActivity;
+    public ImageButton upButton,downButton;
+    public SeekBar potBar,muxBar;
+    public TextView potTextView,muxTextView;
     private OnFragmentInteractionListener mListener;
 
     public ControlFragment() {
@@ -90,7 +98,73 @@ public class ControlFragment extends Fragment {
         super.onDetach();
         mListener = null;
     }
+    @Override
+    public void onStart() {
+        super.onStart();
+        mainActivity=(MainActivity)getActivity();
 
+        upButton=(ImageButton) getView().findViewById(R.id.upButton);
+        downButton=(ImageButton) getView().findViewById(R.id.downButton);
+        potBar=(SeekBar) getView().findViewById(R.id.potBar);
+        muxBar=(SeekBar) getView().findViewById(R.id.muxBar);
+        potTextView=(TextView)getView().findViewById(R.id.potTextView);
+        muxTextView=(TextView)getView().findViewById(R.id.muxTextView);
+
+        upButton.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                mainActivity=(MainActivity)getActivity();
+                mainActivity.txQueue.add(getActivity().getResources().getString(R.string.esp_potup));
+            }
+        });
+        downButton.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                mainActivity=(MainActivity)getActivity();
+                mainActivity.txQueue.add(getActivity().getResources().getString(R.string.esp_potdown));
+            }
+        });
+        potBar.setOnSeekBarChangeListener( new SeekBar.OnSeekBarChangeListener() {
+            int pot = 0;
+
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progresValue, boolean fromUser) {
+            pot=progresValue;
+            potTextView.setText("128--"+String.valueOf(pot));
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+                mainActivity.txQueue.offer(getActivity().getResources().getString(R.string.esp_pot)+" "+String.valueOf(pot));
+                Toast.makeText(getActivity(), "Wiper "+String.valueOf(pot), Toast.LENGTH_SHORT).show();
+
+            }
+        });
+        muxBar.setOnSeekBarChangeListener( new SeekBar.OnSeekBarChangeListener() {
+            int muxCh = 0;
+
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progresValue, boolean fromUser) {
+                muxCh = progresValue;
+                muxTextView.setText("Canal 0-3 -- "+String.valueOf(muxCh));
+                }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+                mainActivity.txQueue.offer(getActivity().getResources().getString(R.string.esp_mux)+" "+String.valueOf(muxCh));
+                Toast.makeText(getActivity(), "Mux Chanel "+String.valueOf(muxCh), Toast.LENGTH_SHORT).show();
+
+            }
+        });
+    }
     /**
      * This interface must be implemented by activities that contain this
      * fragment to allow an interaction in this fragment to be communicated
