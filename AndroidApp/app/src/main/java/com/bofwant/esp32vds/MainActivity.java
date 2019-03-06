@@ -14,16 +14,17 @@ import android.support.v4.app.FragmentManager;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.MenuItem;
-import android.widget.Button;
-import android.widget.TextView;
-import android.widget.ToggleButton;
+
+import com.jjoe64.graphview.series.DataPoint;
+import com.jjoe64.graphview.series.LineGraphSeries;
 
 public class MainActivity extends AppCompatActivity implements HomeFragment.OnFragmentInteractionListener,GraphFragment.OnFragmentInteractionListener,ControlFragment.OnFragmentInteractionListener {
 
     //private TextView mTextMessage;
     public boolean conected = false;
-    UdpClientHandler udpClientHandler;
-    UdpClientThread udpClientThread;
+    public short sampleBuffer[]=new short[200000];
+    UdpAdcHandler udpAdcHandler;
+    UdpAdcThread udpAdcThread;
     final HomeFragment fragment1 = new HomeFragment();
     final GraphFragment fragment2 = new GraphFragment();
     final SettingsFragment fragment3 = new SettingsFragment();
@@ -84,6 +85,7 @@ public class MainActivity extends AppCompatActivity implements HomeFragment.OnFr
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
         setContentView(R.layout.activity_main);
         //mTextMessage = (TextView) findViewById(R.id.message);
         BottomNavigationView navigation = (BottomNavigationView) findViewById(R.id.navigation);
@@ -94,7 +96,7 @@ public class MainActivity extends AppCompatActivity implements HomeFragment.OnFr
         fm.beginTransaction().add(R.id.main_container, fragment2, "2").hide(fragment2).commit();
         fm.beginTransaction().add(R.id.main_container,fragment1, "1").commit();
 
-        udpClientHandler = new UdpClientHandler(this);
+        udpAdcHandler = new UdpAdcHandler(this);
 
 
 
@@ -111,23 +113,28 @@ public class MainActivity extends AppCompatActivity implements HomeFragment.OnFr
         String address = SP.getString("serverIp_preference","192.168.4.1");
         int port =  Integer.valueOf(SP.getString("serverPort_preference","1260"));
 
-        udpClientThread = new UdpClientThread(address, port, udpClientHandler,this);
-        udpClientThread.start();
+        udpAdcThread = new UdpAdcThread(address, port, udpAdcHandler,this,this);
+        udpAdcThread.start();
     }
     public void disconectEsp32(){
-        udpClientThread.setRunning(false);
+        udpAdcThread.setRunning(false);
         conected=false;
         fragment1.changePowerButton(false);
 
     }
-    public static class UdpClientHandler extends Handler {
+    public  void UpdateSample(short sample,int pos){
+        sampleBuffer[pos]=sample;
+    }
+
+
+    public static class UdpAdcHandler extends Handler {
         public static final int UPDATE_STATE = 0;
         public static final int UPDATE_MSG = 1;
         public static final int UPDATE_END = 2;
         public static final int STREAM_PKG = 3;
         private MainActivity parent;
 
-        public UdpClientHandler(MainActivity parent) {
+        public UdpAdcHandler(MainActivity parent) {
             super();
             this.parent = parent;
         }

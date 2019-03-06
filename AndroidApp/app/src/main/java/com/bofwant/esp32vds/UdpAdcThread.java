@@ -1,7 +1,7 @@
 package com.bofwant.esp32vds;
 
+import android.app.Activity;
 import android.content.Context;
-import android.os.Debug;
 import android.os.Message;
 import android.util.Log;
 
@@ -14,12 +14,12 @@ import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
-public class UdpClientThread extends Thread{
-
+public class UdpAdcThread extends Thread{
+    MainActivity activity;
     String dstAddress;
     int dstPort;
     private boolean running;
-    MainActivity.UdpClientHandler handler;
+    MainActivity.UdpAdcHandler handler;
 
 
 
@@ -27,12 +27,13 @@ public class UdpClientThread extends Thread{
     InetAddress address;
     Context context;
 
-    public UdpClientThread(String addr, int port, MainActivity.UdpClientHandler handler, Context context) {
+    public UdpAdcThread(String addr, int port, MainActivity.UdpAdcHandler handler, Context context, MainActivity activity) {
         super();
         dstAddress = addr;
         dstPort = port;
         this.handler = handler;
         this.context=context;
+        this.activity=activity;
 
     }
 
@@ -43,7 +44,7 @@ public class UdpClientThread extends Thread{
     private void sendState(String state){
         handler.sendMessage(
                 Message.obtain(handler,
-                        MainActivity.UdpClientHandler.UPDATE_STATE, state));
+                        MainActivity.UdpAdcHandler.UPDATE_STATE, state));
     }
 
     @Override
@@ -52,6 +53,7 @@ public class UdpClientThread extends Thread{
         ByteBuffer byteBuffer=ByteBuffer.allocate(4000);// 4000 byte buffer
         byteBuffer.order(ByteOrder.LITTLE_ENDIAN);
         running = true;
+        int samplePos=0;
 
         try {
             Log.d("udp","starting socket");
@@ -80,12 +82,17 @@ public class UdpClientThread extends Thread{
                     if(line.equals("start")){
                         sendState(context.getResources().getString(R.string.tag_conected));
                     }
-                    handler.sendMessage(Message.obtain(handler, MainActivity.UdpClientHandler.UPDATE_MSG, line));
+                    handler.sendMessage(Message.obtain(handler, MainActivity.UdpAdcHandler.UPDATE_MSG, line));
 
                 }else{
                     byteBuffer.clear();
                     byteBuffer.put(packet.getData());
                     for (int i=0;i<packet.getLength();i=i+2){
+                        activity.UpdateSample(byteBuffer.getShort(i),samplePos);
+                        samplePos++;
+                        if(samplePos >= 200000){
+                            samplePos=0;
+                        }
                         Log.d("udp read","number i="+String.valueOf(i/2)+" value="+String.valueOf(byteBuffer.getShort(i)));
                     }
 
@@ -109,7 +116,7 @@ public class UdpClientThread extends Thread{
         } finally {
             if(socket != null){
                 socket.close();
-                handler.sendEmptyMessage(MainActivity.UdpClientHandler.UPDATE_END);
+                handler.sendEmptyMessage(MainActivity.UdpAdcHandler.UPDATE_END);
             }
         }
 

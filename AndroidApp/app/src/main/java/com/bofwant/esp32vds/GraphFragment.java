@@ -3,10 +3,18 @@ package com.bofwant.esp32vds;
 import android.content.Context;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
 import android.support.v4.app.Fragment;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
+import android.widget.TextView;
+
+import com.jjoe64.graphview.GraphView;
+import com.jjoe64.graphview.series.DataPoint;
+import com.jjoe64.graphview.series.LineGraphSeries;
 
 
 /**
@@ -26,7 +34,13 @@ public class GraphFragment extends Fragment {
     // TODO: Rename and change types of parameters
     private String mParam1;
     private String mParam2;
-
+    public MainActivity mainActivity;
+    public Button updateButton;
+    public GraphView graph;
+    private LineGraphSeries<DataPoint> dSeries;
+    private final Handler mHandler = new Handler();
+    private Runnable gTimer;
+    private boolean updating;
     private OnFragmentInteractionListener mListener;
 
     public GraphFragment() {
@@ -58,6 +72,7 @@ public class GraphFragment extends Fragment {
             mParam1 = getArguments().getString(ARG_PARAM1);
             mParam2 = getArguments().getString(ARG_PARAM2);
         }
+
     }
 
     @Override
@@ -91,16 +106,73 @@ public class GraphFragment extends Fragment {
         mListener = null;
     }
 
-    /**
-     * This interface must be implemented by activities that contain this
-     * fragment to allow an interaction in this fragment to be communicated
-     * to the activity and potentially other fragments contained in that
-     * activity.
-     * <p>
-     * See the Android Training lesson <a href=
-     * "http://developer.android.com/training/basics/fragments/communicating.html"
-     * >Communicating with Other Fragments</a> for more information.
-     */
+    @Override
+    public void onStart() {
+        super.onStart();
+        mainActivity=(MainActivity)getActivity();
+        for(int i=0;i<200000;i++){
+            mainActivity.sampleBuffer[i]=0;
+        }
+        dSeries=new LineGraphSeries<>(generateDataPoints());
+        graph=(GraphView) getView().findViewById(R.id.graph);
+        graph.getViewport().setYAxisBoundsManual(true);
+        graph.getViewport().setMinY(0);
+        graph.getViewport().setMaxY(4000);
+
+        graph.getViewport().setXAxisBoundsManual(true);
+        graph.getViewport().setMinX(0);
+        graph.getViewport().setMaxX(200000);
+
+        // enable scaling and scrolling
+        graph.getViewport().setScalable(true);
+        //graph.getViewport().setScalableY(true);
+
+        graph.addSeries(dSeries);
+        updateButton=(Button)getView().findViewById(R.id.updateButton);
+        updateButton.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                mainActivity=(MainActivity)getActivity();
+                if(updating){
+                    updating=false;
+                    changeUpdateButton(false);
+                    mHandler.removeCallbacks(gTimer);
+                }else {
+                    updating=true;
+                    changeUpdateButton(true);
+                    gTimer = new Runnable() {
+                        @Override
+                        public void run() {
+                            updating=true;
+                            dSeries.resetData(generateDataPoints());
+                            mHandler.postDelayed(this, 1000);
+                        }
+                    };
+                    mHandler.postDelayed(gTimer, 1000);
+                }
+
+            }
+        });
+    }
+    public DataPoint[] generateDataPoints() {
+        DataPoint[] values = new DataPoint[200000];
+        for (int i=0; i<200000; i++) {
+            values[i]= new DataPoint(i, mainActivity.sampleBuffer[i]);
+        }
+        return values;
+    }
+    public void changeUpdateButton(boolean updating){
+        if(updating){
+            ///connected
+            updateButton.setText("Updating");
+            //updateButton.setCompoundDrawablesWithIntrinsicBounds(getContext().getResources().getDrawable(R.drawable.ic_power_black_24dp),null,null,null);
+
+        }else {
+            ////disconnect
+            updateButton.setText("Start Update");
+            //updateButton.setCompoundDrawablesWithIntrinsicBounds(getContext().getResources().getDrawable(R.drawable.ic_baseline_power_off_24px),null,null,null);
+
+        }
+    }
     public interface OnFragmentInteractionListener {
         // TODO: Update argument type and name
         void onFragmentInteraction(Uri uri);

@@ -56,7 +56,8 @@ int pot_wiper=10;
 #define EXAMPLE_ESP_WIFI_PASS      ""
 #define EXAMPLE_MAX_STA_CONN       1
 
-#define PORT 1260
+#define ADC_PORT 1260
+#define CONTROL_PORT 1261
 /* FreeRTOS event group to signal when we are connected*/
 static EventGroupHandle_t wifi_event_group;
 
@@ -328,13 +329,14 @@ static void udp_server_task(void *pvParameters)
     while (1) {
 
 
-        struct sockaddr_in destAddr;
-        destAddr.sin_addr.s_addr = htonl(INADDR_ANY);
-        destAddr.sin_family = AF_INET;
-        destAddr.sin_port = htons(PORT);
+        struct sockaddr_in adcAddr;
+        adcAddr.sin_addr.s_addr = htonl(INADDR_ANY);
+        adcAddr.sin_family = AF_INET;
+        adcAddr.sin_port = htons(ADC_PORT);
+        
         addr_family = AF_INET;
         ip_protocol = IPPROTO_IP;
-        inet_ntoa_r(destAddr.sin_addr, addr_str, sizeof(addr_str) - 1);
+        inet_ntoa_r(adcAddr.sin_addr, addr_str, sizeof(addr_str) - 1);
 
         int sock = socket(addr_family, SOCK_DGRAM, ip_protocol);
         if (sock < 0) {
@@ -343,7 +345,7 @@ static void udp_server_task(void *pvParameters)
         }
         ESP_LOGI(UTAG, "Socket created");
 
-        int err = bind(sock, (struct sockaddr *)&destAddr, sizeof(destAddr));
+        int err = bind(sock, (struct sockaddr *)&adcAddr, sizeof(adcAddr));
         if (err < 0) {
             ESP_LOGE(UTAG, "Socket unable to bind: errno %d", errno);
         }
@@ -525,7 +527,7 @@ void adc_i2s_read_task(void* arg)
         if(udp_dataready){
             send_buf((uint8_t*) i2s_read_buff, i2s_read_len);
         }
-        vTaskDelay(200 / portTICK_RATE_MS);
+        //vTaskDelay(200 / portTICK_RATE_MS);
     }
 }
 
