@@ -211,7 +211,7 @@ public class GraphFragment extends Fragment {
         double x,y;
         for (int i=0; i<200000; i++) {
             x=i*timescale/200000;
-            y=((2000-mainActivity.sampleBuffer[i])*0.00075*yscale)+offset/yatt;
+            y=((2000-mainActivity.sampleBuffer[i])*0.00075*yscale)+offset;
             //Log.d("graph","x="+String.valueOf(x)+" y="+String.valueOf(y));
             values[i]= new DataPoint(x, y);
         }
