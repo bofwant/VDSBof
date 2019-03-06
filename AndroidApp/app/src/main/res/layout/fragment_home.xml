@@ -58,7 +58,15 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical">
-
+                    <Button
+                        android:id="@+id/logButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:backgroundTint="@color/colorPrimaryDark"
+                        android:gravity="center"
+                        android:padding="@dimen/activity_horizontal_margin"
+                        android:text="Clear Log"
+                        android:textColor="@android:color/white" />
                     <TextView
                         android:id="@+id/logTextView"
                         android:layout_width="match_parent"

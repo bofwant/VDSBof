@@ -11,6 +11,8 @@ import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
 import java.net.UnknownHostException;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 
 public class UdpClientThread extends Thread{
 
@@ -47,7 +49,8 @@ public class UdpClientThread extends Thread{
     @Override
     public void run() {
         sendState("connecting...");
-
+        ByteBuffer byteBuffer=ByteBuffer.allocate(4000);// 4000 byte buffer
+        byteBuffer.order(ByteOrder.LITTLE_ENDIAN);
         running = true;
 
         try {
@@ -62,18 +65,40 @@ public class UdpClientThread extends Thread{
                     new DatagramPacket(buf, buf.length, address, dstPort);
             socket.send(packet);
             Log.d("udp",context.getResources().getString(R.string.esp_start)+" sent");
-            sendState(context.getResources().getString(R.string.tag_conected));
-
+            //sendState(context.getResources().getString(R.string.tag_conected));
             // get response
-            buf = new byte[256];
-            packet = new DatagramPacket(buf, buf.length);
+            while(running){
+                buf = new byte[2000];
+                packet = new DatagramPacket(buf, buf.length);
 
-            Log.d("udp","waiting");
-            socket.receive(packet);
-            String line = new String(packet.getData(), 0, packet.getLength());
+                Log.d("udp","waiting");
+                socket.receive(packet);
+                Log.d("udp packet",String.valueOf(packet.getLength()));
 
-            handler.sendMessage(
-                    Message.obtain(handler, MainActivity.UdpClientHandler.UPDATE_MSG, line));
+                if(packet.getLength()<200){
+                    String line = new String(packet.getData(), 0, packet.getLength());
+                    if(line.equals("start")){
+                        sendState(context.getResources().getString(R.string.tag_conected));
+                    }
+                    handler.sendMessage(Message.obtain(handler, MainActivity.UdpClientHandler.UPDATE_MSG, line));
+
+                }else{
+                    byteBuffer.clear();
+                    byteBuffer.put(packet.getData());
+                    for (int i=0;i<packet.getLength();i=i+2){
+                        Log.d("udp read","number i="+String.valueOf(i/2)+" value="+String.valueOf(byteBuffer.getShort(i)));
+                    }
+
+                }
+
+            }
+
+            buf = context.getResources().getString(R.string.esp_stop).getBytes();
+            packet = new DatagramPacket(buf, buf.length, address, dstPort);
+            socket.send(packet);
+            Log.d("udp",context.getResources().getString(R.string.esp_stop)+" sent");
+            sendState(context.getResources().getString(R.string.tag_disconected));
+
 
         } catch (SocketException e) {
             e.printStackTrace();

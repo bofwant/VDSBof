@@ -5,6 +5,7 @@ import android.content.Context;
 import android.net.Uri;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -31,7 +32,7 @@ public class HomeFragment extends Fragment {
     private String mParam1;
     private String mParam2;
     public MainActivity mainActivity;
-    public Button conectButton;
+    public Button conectButton,logButton;
     public TextView logText;
     private OnFragmentInteractionListener mListener;
 
@@ -101,19 +102,32 @@ public class HomeFragment extends Fragment {
     @Override
     public void onStart() {
         super.onStart();
-
+        mainActivity=(MainActivity)getActivity();
         conectButton = (Button) getView().findViewById(R.id.powerButton);
+        logButton = (Button) getView().findViewById(R.id.logButton);
         logText=(TextView) getView().findViewById(R.id.logTextView);
         conectButton.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
-                // Code here executes on main thread after user presses
-                if(mainActivity==null){
-                    mainActivity=(MainActivity)getActivity();
-                }
+                mainActivity=(MainActivity)getActivity();
                 if(mainActivity.conected){
                     mainActivity.disconectEsp32();
+                    Log.d("udp","disconect");
                 }else {
                     mainActivity.ConectEsp32();
+
+                    Log.d("udp","conect");
+                }
+            }
+        });
+
+        logButton.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                mainActivity=(MainActivity)getActivity();
+                logText.setText("LOG:");
+                if(mainActivity.conected){
+                    Log.d("udp log","true");
+                }else {
+                    Log.d("udp log","false");
                 }
             }
         });
@@ -121,13 +135,15 @@ public class HomeFragment extends Fragment {
 
     public void changePowerButton(boolean conected){
         if(conected){
+            ///connected
+            conectButton.setText("Conectado");
+            conectButton.setCompoundDrawablesWithIntrinsicBounds(getContext().getResources().getDrawable(R.drawable.ic_power_black_24dp),null,null,null);
+
+            }else {
             ////disconnect
             conectButton.setText("Desconectado");
             conectButton.setCompoundDrawablesWithIntrinsicBounds(getContext().getResources().getDrawable(R.drawable.ic_baseline_power_off_24px),null,null,null);
-        }else {
-            ///connect
-            conectButton.setText("Conectado");
-            conectButton.setCompoundDrawablesWithIntrinsicBounds(getContext().getResources().getDrawable(R.drawable.ic_power_black_24dp),null,null,null);
+
         }
     }
     /**

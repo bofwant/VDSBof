@@ -8,8 +8,8 @@
     <string name="title_control">Control</string>
 
 
-    <string name="tag_conected">Conectado</string>
-    <string name="tag_disconected">Desconectado</string>
+    <string name="tag_conected">start</string>
+    <string name="tag_disconected">stop</string>
 
     <string name="esp_start">start 1</string>
     <string name="esp_stop">stop 1</string>

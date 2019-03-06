@@ -12,6 +12,7 @@ import android.support.design.widget.BottomNavigationView;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentManager;
 import android.support.v7.app.AppCompatActivity;
+import android.util.Log;
 import android.view.MenuItem;
 import android.widget.Button;
 import android.widget.TextView;
@@ -114,9 +115,9 @@ public class MainActivity extends AppCompatActivity implements HomeFragment.OnFr
         udpClientThread.start();
     }
     public void disconectEsp32(){
-        udpClientThread = null;
+        udpClientThread.setRunning(false);
         conected=false;
-        fragment1.changePowerButton(conected);
+        fragment1.changePowerButton(false);
 
     }
     public static class UdpClientHandler extends Handler {
@@ -142,6 +143,7 @@ public class MainActivity extends AppCompatActivity implements HomeFragment.OnFr
                     if(((String)msg.obj).equals(parent.getResources().getString(R.string.tag_conected))){
                         parent.conected=true;
                         parent.fragment1.changePowerButton(parent.conected);
+
                     }
                     break;
                 case UPDATE_MSG:
@@ -150,7 +152,8 @@ public class MainActivity extends AppCompatActivity implements HomeFragment.OnFr
                     parent.fragment1.logText.append("\n");
                     break;
                 case UPDATE_END:
-                    parent.disconectEsp32();
+                    //parent.disconectEsp32();
+                    Log.d("udp","UDP client stopped");
                     break;
                 case STREAM_PKG:
                     break;

@@ -16,6 +16,8 @@
 
 #include "soc/gpio_struct.h"
 
+#include "time.h"
+
 #include "esp_spi_flash.h"
 #include "esp_err.h"
 #include "esp_log.h"
@@ -90,7 +92,7 @@ bool ledon=false;
 //enable display buffer for debug
 #define EXAMPLE_I2S_BUF_DEBUG     (0)
 //I2S read buffer length
-#define EXAMPLE_I2S_READ_LEN      (16 * 1024)
+#define EXAMPLE_I2S_READ_LEN      (2 * 800)//(16 * 1024)
 //I2S data format
 #define EXAMPLE_I2S_FORMAT        (I2S_CHANNEL_FMT_RIGHT_LEFT)
 //I2S channel number
@@ -385,11 +387,13 @@ static void udp_server_task(void *pvParameters)
                     udp_socket=sock;
                     udp_clientAddr= sourceAddr;
                     blink_time=250;
-                    
+                    int err = sendto(udp_socket, code, sizeof(code)+1, 0, (struct sockaddr *)&udp_clientAddr, sizeof(udp_clientAddr));
+    
                 }else if(strcmp("stop",code) == 0){
                     // stop udp stream
                         udp_dataready = false;
                         blink_time=500;
+                        int err = sendto(udp_socket, code, sizeof(code)+1, 0, (struct sockaddr *)&udp_clientAddr, sizeof(udp_clientAddr));
                 }else if(strcmp("pot",code) == 0){
                     // stop udp stream
                     int potValue= atoi(message);
@@ -479,27 +483,31 @@ void example_disp_buf(uint8_t* buf, int length)
         
     }
 }
+int adc_values[1000];
+int testtime;
+int errcheck;
 void send_buf(uint8_t* buf, int length)
 {
-    int l=length/2;
-    int adc_values[l];
     
-    // err = sendto(udp_socket, buf, length, 0, (struct sockaddr *)&sourceAddr, sizeof(sourceAddr));
-
+   errcheck= sendto(udp_socket, buf, length, 0, (struct sockaddr *)&udp_clientAddr, sizeof(udp_clientAddr));
+   /* 
     for (int i = 0; i < length; i++) {
         //ESP_LOGI(ATAG,"%d  numb",i/2);
         adc_values[i/2] = ((((int) (buf[i + 1] & 0xf) << 8) | ((buf[i + 0]))));
         //ESP_LOGI(ATAG,"%d numero %d",adc_values[i/2],i/2);
         i++;
         
-    }
-    int err = sendto(udp_socket, adc_values, sizeof(adc_values), 0, (struct sockaddr *)&udp_clientAddr, sizeof(udp_clientAddr));
-     // int err = sendto(udp_socket, buf, length, 0, (struct sockaddr *)&udp_clientAddr, sizeof(udp_clientAddr));
+    }*/
+    
+    //errcheck = sendto(udp_socket, adc_values, sizeof(adc_values), 0, (struct sockaddr *)&udp_clientAddr, sizeof(udp_clientAddr));
+     // errcheck = sendto(udp_socket, buf, length, 0, (struct sockaddr *)&udp_clientAddr, sizeof(udp_clientAddr));
       
-        if (err < 0) {
+        if (errcheck < 0) {
             ESP_LOGE(UTAG, "Error occured during sending: errno %d", errno);
         }else{
-            ESP_LOGI(UTAG,"packet sent last n= %d",adc_values[0]);
+            testtime=testtime-esp_timer_get_time();
+            ESP_LOGI(UTAG,"packet sent last n= %d",(((int) (buf[1] & 0xf) << 8) | ((buf[0]))));
+            ESP_LOGI(UTAG,"time t= %d uS",testtime);
         }
     //udp_dataready=false; blink_time=500;
 }                
@@ -511,10 +519,11 @@ void adc_i2s_read_task(void* arg)
     uint8_t* flash_write_buff = (uint8_t*) calloc(i2s_read_len, sizeof(char));
     i2s_adc_enable(EXAMPLE_I2S_NUM);   
     while(1) {
+        testtime=esp_timer_get_time();
         i2s_read(EXAMPLE_I2S_NUM, (void*) i2s_read_buff, i2s_read_len, &bytes_read, portMAX_DELAY);
         //sexample_disp_buf((uint8_t*) i2s_read_buff, 64);
         if(udp_dataready){
-            send_buf((uint8_t*) i2s_read_buff, 64);
+            send_buf((uint8_t*) i2s_read_buff, i2s_read_len);
         }
         vTaskDelay(200 / portTICK_RATE_MS);
     }
