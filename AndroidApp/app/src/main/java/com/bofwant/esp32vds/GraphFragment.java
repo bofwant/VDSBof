@@ -1,9 +1,11 @@
 package com.bofwant.esp32vds;
 
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
+import android.preference.PreferenceManager;
 import android.support.v4.app.Fragment;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -12,6 +14,7 @@ import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.TextView;
 
+import com.jjoe64.graphview.DefaultLabelFormatter;
 import com.jjoe64.graphview.GraphView;
 import com.jjoe64.graphview.series.DataPoint;
 import com.jjoe64.graphview.series.LineGraphSeries;
@@ -115,13 +118,23 @@ public class GraphFragment extends Fragment {
         }
         dSeries=new LineGraphSeries<>(generateDataPoints());
         graph=(GraphView) getView().findViewById(R.id.graph);
+        graph.getGridLabelRenderer().setLabelFormatter(new DefaultLabelFormatter() {
+            @Override
+            public String formatLabel(double value, boolean isValueX) {
+                if (isValueX) {
+                    return super.formatLabel(value, isValueX) + " uS";
+                } else {
+                    return super.formatLabel(value, isValueX) + " V";
+                }
+            }
+        });
         graph.getViewport().setYAxisBoundsManual(true);
         graph.getViewport().setMinY(-1.5);
         graph.getViewport().setMaxY(1.5);
 
         graph.getViewport().setXAxisBoundsManual(true);
         graph.getViewport().setMinX(0);
-        graph.getViewport().setMaxX(1);
+        graph.getViewport().setMaxX(1000);
 
         // enable scaling and scrolling
         graph.getViewport().setScalable(true);
@@ -154,9 +167,11 @@ public class GraphFragment extends Fragment {
         });
     }
     public DataPoint[] generateDataPoints() {
+        SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(mainActivity);
+        float offset =  Float.valueOf(SP.getString("offset_preference","0.5"));
         DataPoint[] values = new DataPoint[200000];
         for (int i=0; i<200000; i++) {
-            values[i]= new DataPoint(i*0.000005, (2000-mainActivity.sampleBuffer[i])*0.00075);
+            values[i]= new DataPoint(i*0.005, ((2000-mainActivity.sampleBuffer[i])*0.00075)+offset);
         }
         return values;
     }

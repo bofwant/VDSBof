@@ -24,5 +24,19 @@
     </PreferenceCategory>
     <PreferenceCategory
         android:title="Visualizador">
+        <EditTextPreference
+            android:key="offset_preference"
+            android:title="ADC offset"
+            android:summary="adc offset por software"
+            android:dialogTitle="Offset por software del esp32"
+            android:hint="Offset 0.6"
+            android:defaultValue="0.6"/>
+        <EditTextPreference
+            android:key="gain_preference"
+            android:title="ADC ganancia variable AC"
+            android:summary="adc ganancia variable AC"
+            android:dialogTitle="ganancia variable AC del esp32"
+            android:hint="ganancia 11"
+            android:defaultValue="11"/>
     </PreferenceCategory>
 </PreferenceScreen>
