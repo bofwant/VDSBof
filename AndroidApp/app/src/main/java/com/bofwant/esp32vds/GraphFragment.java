@@ -122,7 +122,7 @@ public class GraphFragment extends Fragment {
             @Override
             public String formatLabel(double value, boolean isValueX) {
                 if (isValueX) {
-                    return super.formatLabel(value, isValueX) + " uS";
+                    return super.formatLabel(value, isValueX) + " mS";
                 } else {
                     return super.formatLabel(value, isValueX) + " V";
                 }
